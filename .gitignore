@@ -13,8 +13,7 @@ web_pth/
 seg_data/
 
 # 特定日志文件
-log_exp_flfj.txt
-log_exp_tn3k.txt
+logs/
 
 # ----------------------------------------
 # 通用忽略规则 - 保持仓库干净
