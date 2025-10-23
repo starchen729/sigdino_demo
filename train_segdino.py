@@ -5,6 +5,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from tqdm import tqdm
+<<<<<<< HEAD
 from loss_cal import dice_binary_torch, iou_binary_torch, DiceLoss
 
 
@@ -24,6 +25,8 @@ def get_boundary_weights_map(targets, core_weight=5.0, boundary_weight=1.0):
 
 
 
+=======
+>>>>>>> 2e2b8a973993f8417a0328b3a6930e3a732daa25
 
 def tensor_to_rgb(img_t: torch.Tensor, mean=None, std=None) -> np.ndarray:
     img = img_t.detach().cpu().float()
@@ -93,6 +96,7 @@ def train_one_epoch(model, train_loader, optimizer, device, num_classes=1, dice_
     total_loss = 0.0
     dice_scores = []
     iou_scores = []
+<<<<<<< HEAD
 
 
     #此处为交叉熵损失函数，应该改成Dice损失和交叉熵的加权平均
@@ -111,6 +115,9 @@ def train_one_epoch(model, train_loader, optimizer, device, num_classes=1, dice_
     from loss_cal import dice_binary_torch, iou_binary_torch
 
 
+=======
+    criterion = nn.BCEWithLogitsLoss() if num_classes == 1 else nn.CrossEntropyLoss()
+>>>>>>> 2e2b8a973993f8417a0328b3a6930e3a732daa25
     first_batch_logged = False
     pbar = tqdm(train_loader, desc=f"[Train e{epoch}]")
     for step, (inputs, targets, _) in enumerate(pbar):
@@ -118,6 +125,7 @@ def train_one_epoch(model, train_loader, optimizer, device, num_classes=1, dice_
         targets = targets.to(device)
         optimizer.zero_grad()
         logits = model(inputs)
+<<<<<<< HEAD
 
 
 
@@ -155,6 +163,13 @@ def train_one_epoch(model, train_loader, optimizer, device, num_classes=1, dice_
             #loss_cls = criterion(logits, targets.squeeze(1).long())
             loss = criterion(logits, targets.squeeze(1).long())
         #loss = loss_cls
+=======
+        if num_classes == 1:
+            loss_cls = criterion(logits, targets)
+        else:
+            loss_cls = criterion(logits, targets.squeeze(1).long())
+        loss = loss_cls
+>>>>>>> 2e2b8a973993f8417a0328b3a6930e3a732daa25
         loss.backward()
         optimizer.step()
         total_loss += loss.item()
@@ -292,7 +307,11 @@ def main():
     )
     val_dataset = FolderDataset(
         root=root,
+<<<<<<< HEAD
         split="val",
+=======
+        split="test",
+>>>>>>> 2e2b8a973993f8417a0328b3a6930e3a732daa25
         img_dir_name=args.img_dir_name,
         label_dir_name=args.label_dir_name,
         mask_ext=args.mask_ext if hasattr(args, "mask_ext") else None,
