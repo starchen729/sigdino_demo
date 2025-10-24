@@ -2,6 +2,28 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
+
+
+
+
+try:
+    import kornia.morphology as K_morph
+    import torch.nn.functional as F
+    KORNIA_AVAILABLE = True
+except ImportError:
+    # 如果没有 Kornia，我们使用一个警告占位符
+    KORNIA_AVAILABLE = False
+    print("WARNING: Kornia not found. Boundary weights will be 1.0 (no tolerance).")
+
+
+
+
+
+
+
+
+
 # 用于防止分母为零，提高数值稳定性
 SMOOTH = 1e-6 
 
@@ -107,13 +129,82 @@ class DiceLoss(nn.Module):
 
 
 # ---------------------------------------------------------------------
-# 3. 边界容错权重生成函数 (创新点占位符)
+# 3. 边界容错权重生成函数 (创新点)
 # ---------------------------------------------------------------------
 
-def get_boundary_weights_map(targets_float, core_weight=5.0, boundary_weight=1.0):
+
+def get_boundary_weights_map(targets_float, core_weight=5.0, boundary_weight=1.0, 
+                             bg_weight=0.1, kernel_size=3):
     """
-    边界容错权重图生成函数 (目前仅为占位符)
+    生成边界容错权重图 W。
+    W = (核心区域 * core_weight) + (边界环 * boundary_weight) + (背景 * bg_weight)
+    
+    Args:
+        targets_float (Tensor): 真实标签 (B, 1, H, W), float 类型 (0 或 1)。
+        core_weight (float): 缺陷核心区域的权重（高惩罚）。
+        boundary_weight (float): 缺陷边界环形区域的权重（标准惩罚）。
+        bg_weight (float): 背景区域的权重（低惩罚）。
+        kernel_size (int): 用于形态学操作的核尺寸。
     """
-    # 占位符: 暂时返回权重为 1.0 的张量，即不加权
-    weights = torch.ones_like(targets_float, dtype=torch.float)
+    if not KORNIA_AVAILABLE:
+        # 如果 Kornia 不可用，返回一个均匀的低权重背景图（仅作占位）
+        return torch.ones_like(targets_float) * bg_weight
+
+    device = targets_float.device
+    
+    # Kornia 需要一个形状为 (kernel_size, kernel_size) 的结构元 (Structure Element)
+    kernel = torch.ones(kernel_size, kernel_size, device=device) 
+    
+    # -----------------------------------------------------------
+    # 1. 腐蚀 (Erosion): 找到缺陷核心区域 (Core Mask)
+    #    腐蚀掉边界，只留下中心区域
+    # -----------------------------------------------------------
+    # Kornia 的形态学操作要求输入的形状为 (B, C, H, W)。
+    # targets_float (B, 1, H, W) 符合要求
+    core_mask = K_morph.erosion(targets_float, kernel)
+
+    # -----------------------------------------------------------
+    # 2. 边界环形区域 (Boundary Ring)
+    #    Boundary Ring = 原始 Mask - 核心区域
+    # -----------------------------------------------------------
+    boundary_ring = targets_float - core_mask
+    
+    # -----------------------------------------------------------
+    # 3. 背景区域 (Background)
+    # -----------------------------------------------------------
+    background_mask = 1.0 - targets_float
+
+    # -----------------------------------------------------------
+    # 4. 组合加权图 W
+    # -----------------------------------------------------------
+    
+    # 初始化权重为 bg_weight
+    weights = torch.ones_like(targets_float) * bg_weight
+    
+    # 在前景区域 (targets_float > 0) 覆盖 boundary_weight
+    # boundary_ring 和 core_mask 加起来就是 targets_float
+    
+    # 将边界环的权重设置为 boundary_weight
+    weights[boundary_ring > 0.5] = boundary_weight
+    
+    # 将核心区域的权重设置为 core_weight (覆盖边界权重)
+    weights[core_mask > 0.5] = core_weight
+
+    # ⚠️ 确保 background_mask 区域是 bg_weight（已在初始化时完成）
+    # 另一种更清晰的组合方式（如代码段中）：
+    # final_weights = (core_mask * core_weight) + (boundary_ring * boundary_weight) + (background_mask * bg_weight)
+    
     return weights
+
+
+
+
+
+
+# def get_boundary_weights_map(targets_float, core_weight=5.0, boundary_weight=1.0):
+#     """
+#     边界容错权重图生成函数 (目前仅为占位符)
+#     """
+#     # 占位符: 暂时返回权重为 1.0 的张量，即不加权
+#     weights = torch.ones_like(targets_float, dtype=torch.float)
+#     return weights

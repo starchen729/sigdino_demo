@@ -5,23 +5,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from tqdm import tqdm
-from loss_cal import dice_binary_torch, iou_binary_torch, DiceLoss
-
-
-
-
-
-# ⚠️ 注意: 这是一个占位符。请在后续步骤中用您实际的边界容错权重生成函数替换它。
-# 目标: 生成一个与 targets 相同形状的权重图 W (W[核心] > W[边界])
-def get_boundary_weights_map(targets, core_weight=5.0, boundary_weight=1.0):
-    # 假设这里是形态学操作，用于生成边界权重图
-    #print("Warning: Using Placeholder Boundary Weight Map. Replace this function with your implementation.")
-    
-    # 默认返回一个权重为 1.0 的全张量（即不加权）
-    weights = torch.ones_like(targets, dtype=torch.float)
-    return weights
-
-
+from loss_cal import dice_binary_torch, iou_binary_torch, DiceLoss, get_boundary_weights_map
 
 
 
@@ -139,7 +123,20 @@ def train_one_epoch(model, train_loader, optimizer, device, num_classes=1, dice_
             
             # 2.1 获取边界容错权重图 W (需确保 targets_float 形状和 device 匹配)
             # ⚠️ 注意: 此处使用了占位符函数
-            boundary_weights = get_boundary_weights_map(targets_float).to(device)
+            #boundary_weights = get_boundary_weights_map(targets_float).to(device)
+
+
+
+            CORE_W, BOUNDARY_W, BG_W = 5.0, 1.0, 0.1 
+
+            boundary_weights = get_boundary_weights_map(
+                targets_float, 
+                core_weight=CORE_W, 
+                boundary_weight=BOUNDARY_W, 
+                bg_weight=BG_W,
+                kernel_size=3,
+                # 假设 kernel_size=3，如果需要可在这里添加
+            )
             
             # 2.2 计算逐像素的 BCE Loss
             loss_bce_pixel = criterion_bce(logits, targets_float)
