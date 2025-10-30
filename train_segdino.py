@@ -122,8 +122,7 @@ def train_one_epoch(model, train_loader, optimizer, device, num_classes=1, dice_
             # 2. 边界容错加权 BCE Loss (解决边界模糊/过拟合的创新点)
             
             # 2.1 获取边界容错权重图 W (需确保 targets_float 形状和 device 匹配)
-            # ⚠️ 注意: 此处使用了占位符函数
-            #boundary_weights = get_boundary_weights_map(targets_float).to(device)
+            
 
 
 
@@ -135,6 +134,8 @@ def train_one_epoch(model, train_loader, optimizer, device, num_classes=1, dice_
                 boundary_weight=BOUNDARY_W, 
                 bg_weight=BG_W,
                 kernel_size=3,
+
+                
                 # 假设 kernel_size=3，如果需要可在这里添加
             )
             
